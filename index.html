@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2fb6c4" />
+    <title>Calendario de Rachas</title>
+    <script>
+      (() => {
+        const storageKey = "streak-calendar:theme:v1";
+        const defaultTheme = "ocean-dark";
+        const allowedThemes = new Set([
+          "ocean-dark",
+          "forest-dark",
+          "grape-dark",
+          "sunrise-light",
+          "mint-light",
+          "lavender-light",
+        ]);
+
+        try {
+          const storedTheme = localStorage.getItem(storageKey);
+          document.documentElement.dataset.theme = allowedThemes.has(storedTheme)
+            ? storedTheme
+            : defaultTheme;
+        } catch {
+          document.documentElement.dataset.theme = defaultTheme;
+        }
+      })();
+    </script>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="app-title">
+        <div class="hero__content">
+          <p class="eyebrow">Seguimiento diario</p>
+          <h1 id="app-title">Calendario de Rachas</h1>
+          <p class="hero__text">
+            Marca el día de hoy, conserva tu ritmo y revisa tu progreso por mes.
+          </p>
+        </div>
+      </section>
+
+      <section class="streaks-section" aria-labelledby="streaksTitle">
+        <div class="section-heading">
+          <div>
+            <p class="section-heading__label">Rachas</p>
+            <h2 id="streaksTitle">Tus rachas</h2>
+          </div>
+          <button class="secondary-action" id="newStreakButton" type="button">
+            Nueva racha
+          </button>
+        </div>
+        <div class="streaks-list" id="streaksList" aria-label="Rachas disponibles"></div>
+      </section>
+
+      <section class="daily-section" aria-label="Marcación diaria">
+        <div class="today-panel" aria-live="polite">
+          <span class="today-panel__label">Hoy</span>
+          <strong id="todayLabel">--</strong>
+          <button class="primary-action" id="toggleTodayButton" type="button">
+            Marcar hoy
+          </button>
+          <p id="todayStatus" class="today-panel__status">Pendiente por completar</p>
+        </div>
+
+        <div class="stats-grid" aria-label="Estadísticas de racha">
+          <article class="stat-card">
+            <span class="stat-card__label">Racha actual</span>
+            <strong id="currentStreak">0</strong>
+            <span class="stat-card__hint">días seguidos</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-card__label">Mejor racha</span>
+            <strong id="bestStreak">0</strong>
+            <span class="stat-card__hint">récord personal</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-card__label">Total completados</span>
+            <strong id="totalCompleted">0</strong>
+            <span class="stat-card__hint">días marcados</span>
+          </article>
+          <article class="stat-card">
+            <span class="stat-card__label">Este mes</span>
+            <strong id="monthCompleted">0</strong>
+            <span class="stat-card__hint">días completados</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="calendar-section" aria-labelledby="calendarTitle">
+        <div class="calendar-toolbar">
+          <button class="icon-button" id="prevMonthButton" type="button" aria-label="Mes anterior">
+            <span aria-hidden="true">&#8592;</span>
+          </button>
+          <div class="calendar-toolbar__title">
+            <p class="calendar-toolbar__label">Vista mensual</p>
+            <h2 id="calendarTitle">--</h2>
+            <button class="calendar-today-button" id="todayMonthButton" type="button" hidden>
+              Hoy
+            </button>
+          </div>
+          <button class="icon-button" id="nextMonthButton" type="button" aria-label="Mes siguiente">
+            <span aria-hidden="true">&#8594;</span>
+          </button>
+        </div>
+
+        <div class="calendar" aria-label="Calendario mensual">
+          <div class="weekday">Lun</div>
+          <div class="weekday">Mar</div>
+          <div class="weekday">Mié</div>
+          <div class="weekday">Jue</div>
+          <div class="weekday">Vie</div>
+          <div class="weekday">Sáb</div>
+          <div class="weekday">Dom</div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="legend" aria-label="Leyenda">
+          <span><i class="legend__dot legend__dot--done"></i>Completado</span>
+          <span><i class="legend__dot legend__dot--today"></i>Hoy</span>
+          <span><i class="legend__dot legend__dot--future"></i>Futuro</span>
+        </div>
+      </section>
+
+      <section class="catch-up-section" id="catchUpSection" aria-labelledby="catchUpTitle" hidden>
+        <div class="section-heading">
+          <p class="section-heading__label">Recuperar racha</p>
+          <h2 id="catchUpTitle">¿Cumpliste días anteriores?</h2>
+        </div>
+        <p class="catch-up-section__text" id="catchUpText">
+          Selecciona los días que sí cumpliste para agregarlos a tu racha.
+        </p>
+        <div class="catch-up-list" id="catchUpList"></div>
+        <div class="catch-up-actions">
+          <button class="secondary-action" id="dismissCatchUpButton" type="button">
+            Omitir
+          </button>
+          <button class="primary-action" id="saveCatchUpButton" type="button">
+            Marcar seleccionados
+          </button>
+        </div>
+      </section>
+
+      <section class="achievements-section" aria-labelledby="achievementsTitle">
+        <div class="section-heading">
+          <div>
+            <p class="section-heading__label">Progreso desbloqueado</p>
+            <h2 id="achievementsTitle">Logros</h2>
+          </div>
+          <button class="secondary-action" id="openAchievementsModalButton" type="button">
+            Ver todos los logros
+          </button>
+        </div>
+
+        <div class="achievements-summary">
+          <article class="achievement-summary-card">
+            <span class="achievement-summary-card__label">Desbloqueados</span>
+            <strong id="achievementsUnlockedCount">0/0</strong>
+            <span class="achievement-summary-card__hint">logros conseguidos</span>
+          </article>
+          <article class="achievement-summary-card achievement-summary-card--wide">
+            <span class="achievement-summary-card__label">Siguiente logro</span>
+            <strong id="nextAchievementName">--</strong>
+            <span class="achievement-summary-card__hint" id="nextAchievementProgress">--</span>
+            <div
+              class="achievement-progress"
+              id="nextAchievementProgressBar"
+              aria-label="Progreso del siguiente logro"
+            >
+              <span id="nextAchievementProgressValue"></span>
+            </div>
+          </article>
+        </div>
+
+        <div class="achievements-preview" id="achievementsPreviewList"></div>
+      </section>
+
+      <section class="data-section" aria-labelledby="dataTitle">
+        <div class="section-heading">
+          <div>
+            <p class="section-heading__label">Respaldo</p>
+            <h2 id="dataTitle">Datos</h2>
+          </div>
+        </div>
+
+        <div class="data-actions">
+          <button class="secondary-action" id="exportDataButton" type="button">
+            Exportar respaldo
+          </button>
+          <button class="secondary-action" id="importDataButton" type="button">
+            Importar respaldo
+          </button>
+          <button class="secondary-action install-action" id="installAppButton" type="button" hidden>
+            Instalar app
+          </button>
+          <input
+            id="importDataInput"
+            type="file"
+            accept="application/json,.json"
+            hidden
+          />
+        </div>
+        <p class="data-status" id="dataStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="theme-section" aria-labelledby="themeTitle">
+        <div class="section-heading">
+          <div>
+            <p class="section-heading__label">Personalización</p>
+            <h2 id="themeTitle">Tema de color</h2>
+          </div>
+        </div>
+
+        <div class="theme-options" aria-label="Temas disponibles">
+          <button
+                  class="theme-option"
+                  type="button"
+                  data-theme-option="ocean-dark"
+                  aria-pressed="true"
+          >
+            <span class="theme-option__swatches" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+            <span class="theme-option__name">Océano oscuro</span>
+          </button>
+          <button
+                  class="theme-option"
+                  type="button"
+                  data-theme-option="forest-dark"
+                  aria-pressed="false"
+          >
+            <span class="theme-option__swatches" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+            <span class="theme-option__name">Bosque oscuro</span>
+          </button>
+          <button
+                  class="theme-option"
+                  type="button"
+                  data-theme-option="grape-dark"
+                  aria-pressed="false"
+          >
+            <span class="theme-option__swatches" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+            <span class="theme-option__name">Uva oscuro</span>
+          </button>
+          <button
+                  class="theme-option"
+                  type="button"
+                  data-theme-option="sunrise-light"
+                  aria-pressed="false"
+          >
+            <span class="theme-option__swatches" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+            <span class="theme-option__name">Amanecer claro</span>
+          </button>
+          <button
+                  class="theme-option"
+                  type="button"
+                  data-theme-option="mint-light"
+                  aria-pressed="false"
+          >
+            <span class="theme-option__swatches" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+            <span class="theme-option__name">Menta claro</span>
+          </button>
+          <button
+                  class="theme-option"
+                  type="button"
+                  data-theme-option="lavender-light"
+                  aria-pressed="false"
+          >
+            <span class="theme-option__swatches" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+            <span class="theme-option__name">Lavanda claro</span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <div
+      class="streak-modal"
+      id="streakEditorModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="streakEditorTitle"
+      aria-hidden="true"
+      hidden
+    >
+      <div class="streak-modal__backdrop" data-close-streak-modal></div>
+      <form class="streak-modal__panel" id="streakEditorForm">
+        <div class="streak-modal__header">
+          <div>
+            <span class="achievement-modal__kicker">Racha</span>
+            <h2 id="streakEditorTitle">Nueva racha</h2>
+          </div>
+          <button
+            class="achievement-modal__close"
+            id="closeStreakEditorButton"
+            type="button"
+            aria-label="Cerrar editor de racha"
+          >
+            &times;
+          </button>
+        </div>
+
+        <label class="day-field" for="streakEditorName">
+          <span>Nombre</span>
+          <input
+            id="streakEditorName"
+            type="text"
+            maxlength="40"
+            required
+            placeholder="Ej. Ejercicio, Lectura, Meditación"
+          />
+        </label>
+
+        <div class="streak-modal__actions">
+          <button class="secondary-action" id="cancelStreakEditorButton" type="button">
+            Cancelar
+          </button>
+          <button class="primary-action" id="saveStreakEditorButton" type="submit">
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      class="day-modal"
+      id="dayEditorModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dayEditorTitle"
+      aria-hidden="true"
+      hidden
+    >
+      <div class="day-modal__backdrop" data-close-day-modal></div>
+      <div class="day-modal__panel">
+        <div class="day-modal__header">
+          <div>
+            <span class="achievement-modal__kicker">Editar día</span>
+            <h2 id="dayEditorTitle">--</h2>
+          </div>
+          <button
+            class="achievement-modal__close"
+            id="closeDayEditorButton"
+            type="button"
+            aria-label="Cerrar editor de día"
+          >
+            &times;
+          </button>
+        </div>
+
+        <label class="day-toggle">
+          <input id="dayEditorCompleted" type="checkbox" />
+          <span>Completado</span>
+        </label>
+
+        <label class="day-field" for="dayEditorNote">
+          <span>Nota</span>
+          <textarea
+            id="dayEditorNote"
+            maxlength="220"
+            rows="4"
+            placeholder="Escribe una nota corta sobre este día"
+          ></textarea>
+        </label>
+
+        <div class="day-modal__actions">
+          <button class="secondary-action" id="cancelDayEditorButton" type="button">
+            Cancelar
+          </button>
+          <button class="primary-action" id="saveDayEditorButton" type="button">
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="achievements-modal"
+      id="achievementsModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="achievementsModalTitle"
+      aria-hidden="true"
+      hidden
+    >
+      <div class="achievements-modal__backdrop" data-close-achievements-modal></div>
+      <div class="achievements-modal__panel">
+        <div class="achievements-modal__header">
+          <div>
+            <span class="achievement-modal__kicker">Colección de logros</span>
+            <h2 id="achievementsModalTitle">Todos los logros</h2>
+          </div>
+          <button
+            class="achievement-modal__close"
+            id="closeAchievementsModalButton"
+            type="button"
+            aria-label="Cerrar lista de logros"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div class="achievements-group">
+          <h3>Conseguidos</h3>
+          <p class="achievements-empty" id="achievementsEmpty">
+            Completa tu primer día para desbloquear el primer logro.
+          </p>
+          <div class="achievements-list" id="achievementsList"></div>
+        </div>
+        <div class="achievements-group">
+          <h3>Por conseguir</h3>
+          <p class="achievements-empty" id="availableAchievementsEmpty">
+            Ya conseguiste todos los logros disponibles.
+          </p>
+          <div class="achievements-list" id="availableAchievementsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="achievement-modal"
+      id="achievementModal"
+      role="dialog"
+      aria-live="polite"
+      aria-modal="false"
+      aria-labelledby="achievementModalTitle"
+      aria-describedby="achievementModalMessage"
+      aria-hidden="true"
+      hidden
+    >
+      <div class="achievement-modal__panel">
+        <span class="achievement-modal__kicker">Nuevo logro</span>
+        <strong id="achievementModalTitle">--</strong>
+        <p id="achievementModalMessage">--</p>
+        <button
+          class="achievement-modal__close"
+          id="closeAchievementModalButton"
+          type="button"
+          aria-label="Cerrar logro"
+        >
+          &times;
+        </button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
