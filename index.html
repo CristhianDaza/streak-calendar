@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#2fb6c4" />
+    <meta name="theme-color" content="#88bdf2" />
     <title>Calendario de Rachas</title>
     <script>
       (() => {
         const storageKey = "streak-calendar:theme:v1";
-        const defaultTheme = "ocean-dark";
+        const defaultTheme = "stormy-morning";
         const allowedThemes = new Set([
-          "ocean-dark",
-          "forest-dark",
-          "grape-dark",
-          "sunrise-light",
-          "mint-light",
-          "lavender-light",
+          "stormy-morning",
+          "blue-eclipse",
+          "ink-wash",
+          "wisteria-bloom",
+          "desert-dusk",
+          "cherry-blossom",
         ]);
 
         try {
@@ -220,68 +220,68 @@
           <button
                   class="theme-option"
                   type="button"
-                  data-theme-option="ocean-dark"
+                  data-theme-option="stormy-morning"
                   aria-pressed="true"
           >
             <span class="theme-option__swatches" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
-            <span class="theme-option__name">Océano oscuro</span>
+            <span class="theme-option__name">Stormy morning</span>
           </button>
           <button
                   class="theme-option"
                   type="button"
-                  data-theme-option="forest-dark"
+                  data-theme-option="blue-eclipse"
                   aria-pressed="false"
           >
             <span class="theme-option__swatches" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
-            <span class="theme-option__name">Bosque oscuro</span>
+            <span class="theme-option__name">Blue eclipse</span>
           </button>
           <button
                   class="theme-option"
                   type="button"
-                  data-theme-option="grape-dark"
+                  data-theme-option="ink-wash"
                   aria-pressed="false"
           >
             <span class="theme-option__swatches" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
-            <span class="theme-option__name">Uva oscuro</span>
+            <span class="theme-option__name">Ink wash</span>
           </button>
           <button
                   class="theme-option"
                   type="button"
-                  data-theme-option="sunrise-light"
+                  data-theme-option="wisteria-bloom"
                   aria-pressed="false"
           >
             <span class="theme-option__swatches" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
-            <span class="theme-option__name">Amanecer claro</span>
+            <span class="theme-option__name">Wisteria bloom</span>
           </button>
           <button
                   class="theme-option"
                   type="button"
-                  data-theme-option="mint-light"
+                  data-theme-option="desert-dusk"
                   aria-pressed="false"
           >
             <span class="theme-option__swatches" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
-            <span class="theme-option__name">Menta claro</span>
+            <span class="theme-option__name">Desert dusk</span>
           </button>
           <button
                   class="theme-option"
                   type="button"
-                  data-theme-option="lavender-light"
+                  data-theme-option="cherry-blossom"
                   aria-pressed="false"
           >
             <span class="theme-option__swatches" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
-            <span class="theme-option__name">Lavanda claro</span>
+            <span class="theme-option__name">Cherry blossom</span>
           </button>
         </div>
       </section>
@@ -434,7 +434,7 @@
       class="achievement-modal-stack"
       id="achievementModalStack"
       aria-live="polite"
-      aria-relevant="additions removals"
+      aria-relevant="additions"
     ></div>
 
     <script type="module" src="script.js"></script>

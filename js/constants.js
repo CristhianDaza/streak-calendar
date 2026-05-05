@@ -4,7 +4,7 @@ export const NOTES_STORAGE_KEY = "streak-calendar:notes:v1";
 export const THEME_STORAGE_KEY = "streak-calendar:theme:v1";
 export const STREAKS_STORAGE_KEY = "streak-calendar:streaks:v2";
 export const EXPORT_VERSION = 2;
-export const DEFAULT_THEME = "ocean-dark";
+export const DEFAULT_THEME = "stormy-morning";
 export const DEFAULT_STREAK_ID = "streak-default";
 export const DEFAULT_STREAK_NAME = "Mi racha";
 export const MAX_STREAK_NAME_LENGTH = 40;
@@ -12,12 +12,12 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export const ACHIEVEMENT_MODAL_TIMEOUT = 5200;
 
 export const THEME_IDS = new Set([
-  "ocean-dark",
-  "forest-dark",
-  "grape-dark",
-  "sunrise-light",
-  "mint-light",
-  "lavender-light",
+  "stormy-morning",
+  "blue-eclipse",
+  "ink-wash",
+  "wisteria-bloom",
+  "desert-dusk",
+  "cherry-blossom",
 ]);
 
 export const ACHIEVEMENTS = [
