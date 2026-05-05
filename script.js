@@ -77,7 +77,6 @@ const state = {
   selectedDateKey: null,
   editingStreakId: null,
   deferredInstallPrompt: null,
-  catchUpDismissed: false,
   achievementModalSequence: 0,
 };
 
@@ -398,7 +397,7 @@ function renderCatchUp() {
 
   elements.catchUpList.replaceChildren();
 
-  if (state.catchUpDismissed || pendingDates.length === 0) {
+  if (pendingDates.length === 0) {
     elements.catchUpSection.hidden = true;
     return;
   }
@@ -725,7 +724,18 @@ function saveDayEditor() {
 }
 
 function dismissCatchUp() {
-  state.catchUpDismissed = true;
+  const pendingDates = getPendingCatchUpDates();
+
+  if (pendingDates.length > 0) {
+    const activeStreak = getActiveStreak();
+    updateActiveStreak({
+      dismissedCatchUpDates: [
+        ...new Set([...activeStreak.dismissedCatchUpDates, ...pendingDates]),
+      ].sort(),
+    });
+    saveStreakState();
+  }
+
   render();
 }
 
@@ -738,8 +748,12 @@ function saveCatchUpDates() {
 
   const activeStreak = getActiveStreak();
   const previousAchievementIds = new Set(Object.keys(activeStreak.unlockedAchievements));
+  const selectedDatesSet = new Set(selectedDates);
   updateActiveStreak({
     completedDates: [...new Set([...activeStreak.completedDates, ...selectedDates])].sort(),
+    dismissedCatchUpDates: activeStreak.dismissedCatchUpDates.filter(
+      (dateKey) => !selectedDatesSet.has(dateKey),
+    ),
   });
   const newlyUnlockedAchievements = syncUnlockedAchievementsFromCompletedDates(
     previousAchievementIds,
@@ -770,14 +784,19 @@ function showCurrentMonth() {
 function setCompletedDate(dateKey, isComplete) {
   const activeStreak = getActiveStreak();
   const completedSet = new Set(activeStreak.completedDates);
+  const dismissedSet = new Set(activeStreak.dismissedCatchUpDates);
 
   if (isComplete) {
     completedSet.add(dateKey);
+    dismissedSet.delete(dateKey);
   } else {
     completedSet.delete(dateKey);
   }
 
-  updateActiveStreak({ completedDates: [...completedSet].sort() });
+  updateActiveStreak({
+    completedDates: [...completedSet].sort(),
+    dismissedCatchUpDates: [...dismissedSet].sort(),
+  });
 }
 
 function getStats(completedDates, today) {
@@ -1153,6 +1172,12 @@ function normalizeStreak(value, index) {
   const completedDates = Array.isArray(value.completedDates)
     ? normalizeDateArray(value.completedDates)
     : [];
+  const completedDateSet = new Set(completedDates);
+  const dismissedCatchUpDates = Array.isArray(value.dismissedCatchUpDates)
+    ? normalizeDateArray(value.dismissedCatchUpDates).filter(
+        (dateKey) => !completedDateSet.has(dateKey),
+      )
+    : [];
   const notesByDate =
     value.notesByDate && !Array.isArray(value.notesByDate) && typeof value.notesByDate === "object"
       ? normalizeNotesByDate(value.notesByDate)
@@ -1169,6 +1194,7 @@ function normalizeStreak(value, index) {
     name,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date().toISOString(),
     completedDates,
+    dismissedCatchUpDates,
     notesByDate,
     unlockedAchievements: {
       ...deriveAchievementsFromCompletedDates(completedDates),
@@ -1190,6 +1216,7 @@ function createMigratedStreakState() {
         name: DEFAULT_STREAK_NAME,
         createdAt: new Date().toISOString(),
         completedDates,
+        dismissedCatchUpDates: [],
         notesByDate: loadNotesByDate(),
         unlockedAchievements: {
           ...deriveAchievementsFromCompletedDates(completedDates),
@@ -1206,6 +1233,7 @@ function createEmptyStreak(name = DEFAULT_STREAK_NAME, id = createStreakId()) {
     name: normalizeStreakName(name) || DEFAULT_STREAK_NAME,
     createdAt: new Date().toISOString(),
     completedDates: [],
+    dismissedCatchUpDates: [],
     notesByDate: {},
     unlockedAchievements: {},
   };
@@ -1260,7 +1288,6 @@ function setActiveStreak(streakId) {
   }
 
   state.activeStreakId = streakId;
-  state.catchUpDismissed = false;
   hideDayEditor();
   hideAchievementModal();
   saveStreakState();
@@ -1508,6 +1535,15 @@ function mergeImportedData(backup) {
     const completedDates = [
       ...new Set([...currentStreak.completedDates, ...importedStreak.completedDates]),
     ].sort();
+    const completedDateSet = new Set(completedDates);
+    const dismissedCatchUpDates = [
+      ...new Set([
+        ...currentStreak.dismissedCatchUpDates,
+        ...importedStreak.dismissedCatchUpDates,
+      ]),
+    ]
+      .filter((dateKey) => !completedDateSet.has(dateKey))
+      .sort();
     const unlockedAchievements = {
       ...deriveAchievementsFromCompletedDates(completedDates),
       ...importedStreak.unlockedAchievements,
@@ -1518,6 +1554,7 @@ function mergeImportedData(backup) {
       ...currentStreak,
       name: currentStreak.name || importedStreak.name,
       completedDates,
+      dismissedCatchUpDates,
       notesByDate: {
         ...importedStreak.notesByDate,
         ...currentStreak.notesByDate,
@@ -1535,13 +1572,11 @@ function mergeImportedData(backup) {
   saveStreakState();
 
   const updatedActiveStreak = getActiveStreak();
-  const newlyUnlockedAchievements = ACHIEVEMENTS.filter(
+  return ACHIEVEMENTS.filter(
     (achievement) =>
       updatedActiveStreak.unlockedAchievements[achievement.id] &&
       !previousAchievementIds.has(achievement.id),
   );
-
-  return newlyUnlockedAchievements;
 }
 
 function showDataStatus(message, isError = false) {
@@ -1777,6 +1812,7 @@ function getPendingCatchUpDates() {
   const yesterdayKey = toDateKey(yesterday);
   const activeStreak = getActiveStreak();
   const completedSet = new Set(activeStreak.completedDates);
+  const dismissedSet = new Set(activeStreak.dismissedCatchUpDates);
   const lastCompletedBeforeToday = activeStreak.completedDates
     .filter((dateKey) => dateKey < todayKey)
     .sort()
@@ -1792,7 +1828,7 @@ function getPendingCatchUpDates() {
   while (toDateKey(cursor) <= yesterdayKey) {
     const cursorKey = toDateKey(cursor);
 
-    if (!completedSet.has(cursorKey)) {
+    if (!completedSet.has(cursorKey) && !dismissedSet.has(cursorKey)) {
       pendingDates.push(cursorKey);
     }
 
