@@ -131,25 +131,27 @@ export function deriveAchievementsFromCompletedDates(completedDates) {
 
 export function getAchievementProgress(achievement, stats, activeStreak) {
   let current = 0;
-
-  if (achievement.type === "streak") {
-    current = stats.currentStreak;
-  }
-
-  if (achievement.type === "total") {
-    current = stats.totalCompleted;
-  }
-
-  if (achievement.type === "perfect-month") {
-    current = stats.perfectMonths;
-  }
-
-  if (achievement.type === "weekend") {
-    current = stats.completedWeekends;
-  }
-
-  if (achievement.type === "recovery" && activeStreak.unlockedAchievements[achievement.id]) {
-    current = 1;
+  
+  switch (achievement.type) {
+    case "streak":
+      current = stats.currentStreak;
+      break;
+    case "total":
+      current = stats.totalCompleted;
+      break;
+    case "perfect-month":
+      current = stats.perfectMonths;
+      break;
+    case "weekend":
+      current = stats.completedWeekends;
+      break;
+    case "recovery":
+      if (activeStreak.unlockedAchievements[achievement.id]) {
+        current = 1;
+      }
+      break;
+    default:
+      break;
   }
 
   return {
@@ -175,23 +177,26 @@ export function getAchievementProgressText(achievement, stats, activeStreak) {
 }
 
 export function getAchievementGoalLabel(achievement) {
-  if (achievement.type === "streak") {
-    return `logro de ${formatDaysLabel(achievement.target)} de racha`;
+  let label;
+  
+  switch (achievement.type) {
+    case "streak":
+      label = `logro de ${formatDaysLabel(achievement.target)} de racha`;
+      break;
+    case "total":
+      label = `logro de ${formatDaysLabel(achievement.target)} completados`;
+      break;
+    case "perfect-month":
+      label = "logro de mes perfecto";
+      break;
+    case "weekend":
+      label = `logro de ${formatWeekendLabel(achievement.target)}`;
+      break;
+    default:
+      label = "logro de recuperación";
+      break;
   }
-
-  if (achievement.type === "total") {
-    return `logro de ${formatDaysLabel(achievement.target)} completados`;
-  }
-
-  if (achievement.type === "perfect-month") {
-    return "logro de mes perfecto";
-  }
-
-  if (achievement.type === "weekend") {
-    return `logro de ${formatWeekendLabel(achievement.target)}`;
-  }
-
-  return "logro de recuperación";
+  return label;
 }
 
 export function getAchievementBadge(achievement) {

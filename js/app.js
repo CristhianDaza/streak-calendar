@@ -10,7 +10,6 @@ import { showModal, hideModal } from "./dom-utils.js";
 import {
   addDays,
   capitalize,
-  formatDateKey,
   longDateFormatter,
   parseDateKey,
   startOfMonth,
@@ -641,9 +640,9 @@ async function installApp() {
 
   if (choice.outcome === "accepted") {
     showDataStatus(elements, "Instalación iniciada.");
-  } else {
-    showDataStatus(elements, "Instalación cancelada.");
+    return;
   }
+  showDataStatus(elements, "Instalación cancelada.");
 }
 
 function handleAppInstalled() {

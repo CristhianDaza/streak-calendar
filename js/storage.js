@@ -13,6 +13,7 @@ import {
 import { deriveAchievementsFromCompletedDates } from "./achievements.js";
 import {
   normalizeDateArray,
+  isRecordObject,
   normalizeNotesByDate,
   normalizeStreak,
   normalizeStreakState,
@@ -43,8 +44,8 @@ export function loadStreakState() {
       saveStreakStateData(streakState);
       return streakState;
     }
-  } catch {
-    // Fall through to the v1 migration path.
+  } catch (error) {
+    console.warn("No se pudo cargar el estado de rachas guardado. Se intentará migrar desde datos v1.", error);
   }
 
   const migratedState = createMigratedStreakState();
@@ -86,16 +87,12 @@ export function normalizeBackupData(value) {
   }
 
   const completedDates = normalizeDateArray(value.completedDates);
-  const notesByDate =
-    value.notesByDate && !Array.isArray(value.notesByDate) && typeof value.notesByDate === "object"
-      ? normalizeNotesByDate(value.notesByDate)
-      : {};
-  const unlockedAchievements =
-    value.unlockedAchievements &&
-    !Array.isArray(value.unlockedAchievements) &&
-    typeof value.unlockedAchievements === "object"
-      ? normalizeUnlockedAchievements(value.unlockedAchievements)
-      : {};
+  const notesByDate = isRecordObject(value.notesByDate)
+    ? normalizeNotesByDate(value.notesByDate)
+    : {};
+  const unlockedAchievements = isRecordObject(value.unlockedAchievements)
+    ? normalizeUnlockedAchievements(value.unlockedAchievements)
+    : {};
 
   return {
     version: EXPORT_VERSION,
@@ -160,7 +157,7 @@ function loadNotesByDate() {
     const storedValue = localStorage.getItem(NOTES_STORAGE_KEY);
     const parsedValue = storedValue ? JSON.parse(storedValue) : {};
 
-    if (!parsedValue || Array.isArray(parsedValue) || typeof parsedValue !== "object") {
+    if (!isRecordObject(parsedValue)) {
       return {};
     }
 
@@ -180,7 +177,7 @@ function loadUnlockedAchievements() {
     const storedValue = localStorage.getItem(ACHIEVEMENT_STORAGE_KEY);
     const parsedValue = storedValue ? JSON.parse(storedValue) : {};
 
-    if (!parsedValue || Array.isArray(parsedValue) || typeof parsedValue !== "object") {
+    if (!isRecordObject(parsedValue)) {
       return {};
     }
 

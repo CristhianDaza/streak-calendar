@@ -51,16 +51,12 @@ export function normalizeStreak(value, index) {
         (dateKey) => !completedDateSet.has(dateKey),
       )
     : [];
-  const notesByDate =
-    value.notesByDate && !Array.isArray(value.notesByDate) && typeof value.notesByDate === "object"
-      ? normalizeNotesByDate(value.notesByDate)
-      : {};
-  const storedAchievements =
-    value.unlockedAchievements &&
-    !Array.isArray(value.unlockedAchievements) &&
-    typeof value.unlockedAchievements === "object"
-      ? normalizeUnlockedAchievements(value.unlockedAchievements)
-      : {};
+  const notesByDate = isRecordObject(value.notesByDate)
+    ? normalizeNotesByDate(value.notesByDate)
+    : {};
+  const storedAchievements = isRecordObject(value.unlockedAchievements)
+    ? normalizeUnlockedAchievements(value.unlockedAchievements)
+    : {};
 
   return {
     id,
@@ -109,7 +105,7 @@ export function normalizeDateArray(value) {
 }
 
 export function normalizeNotesByDate(value) {
-  if (!value || Array.isArray(value) || typeof value !== "object") {
+  if (!isRecordObject(value)) {
     throw new Error("Invalid notes");
   }
 
@@ -122,7 +118,7 @@ export function normalizeNotesByDate(value) {
 }
 
 export function normalizeUnlockedAchievements(value) {
-  if (!value || Array.isArray(value) || typeof value !== "object") {
+  if (!isRecordObject(value)) {
     throw new Error("Invalid achievements");
   }
 
@@ -132,4 +128,8 @@ export function normalizeUnlockedAchievements(value) {
         ACHIEVEMENT_IDS.has(achievementId) && isDateKey(unlockedDateKey),
     ),
   );
+}
+
+export function isRecordObject(value) {
+  return Boolean(value) && !Array.isArray(value) && typeof value === "object";
 }
