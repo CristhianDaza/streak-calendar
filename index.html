@@ -431,30 +431,11 @@
     </div>
 
     <div
-      class="achievement-modal"
-      id="achievementModal"
-      role="dialog"
+      class="achievement-modal-stack"
+      id="achievementModalStack"
       aria-live="polite"
-      aria-modal="false"
-      aria-labelledby="achievementModalTitle"
-      aria-describedby="achievementModalMessage"
-      aria-hidden="true"
-      hidden
-    >
-      <div class="achievement-modal__panel">
-        <span class="achievement-modal__kicker">Nuevo logro</span>
-        <strong id="achievementModalTitle">--</strong>
-        <p id="achievementModalMessage">--</p>
-        <button
-          class="achievement-modal__close"
-          id="closeAchievementModalButton"
-          type="button"
-          aria-label="Cerrar logro"
-        >
-          &times;
-        </button>
-      </div>
-    </div>
+      aria-relevant="additions removals"
+    ></div>
 
     <script src="script.js"></script>
   </body>

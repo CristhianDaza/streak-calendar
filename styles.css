@@ -1417,16 +1417,16 @@ h1 {
 
 .day__note {
   position: absolute;
-  right: 10px;
-  top: 10px;
+  right: 8px;
+  top: 8px;
   z-index: 1;
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border: 0;
   border-radius: 999px;
   background: var(--label);
-  box-shadow: 0 0 0 3px var(--brand-soft);
-  opacity: 0.78;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface), transparent 18%);
+  opacity: 0.72;
 }
 
 .day.is-empty {
@@ -1729,13 +1729,26 @@ body.has-open-modal {
   line-height: 1.1;
 }
 
-.achievement-modal {
+.achievement-modal-stack {
   position: fixed;
   top: 22px;
   right: 22px;
   z-index: 20;
   width: min(380px, calc(100% - 32px));
+  max-height: calc(100vh - 44px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   pointer-events: none;
+}
+
+.achievement-modal-stack:empty {
+  display: none;
+}
+
+.achievement-modal {
+  flex: 0 0 auto;
   transform: translateY(-18px);
   opacity: 0;
   transition:
@@ -2010,6 +2023,52 @@ body.has-open-modal {
     grid-template-columns: 1fr;
   }
 
+  .streak-card {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .streak-card__main {
+    gap: 7px;
+    padding: 14px 14px 10px;
+  }
+
+  .streak-card__main strong,
+  .streak-card__meta,
+  .streak-card__metrics {
+    min-width: 0;
+  }
+
+  .streak-card__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    font-size: 0.76rem;
+  }
+
+  .streak-card__metrics span {
+    display: grid;
+    gap: 2px;
+    align-items: start;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 8px;
+  }
+
+  .streak-card__metrics b {
+    display: block;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .streak-card__edit {
+    width: calc(100% - 28px);
+    min-height: 38px;
+    justify-self: stretch;
+    margin: 0 14px 14px;
+  }
+
   .section-heading {
     display: block;
   }
@@ -2110,10 +2169,12 @@ body.has-open-modal {
     width: 100%;
   }
 
-  .achievement-modal {
+  .achievement-modal-stack {
     top: 12px;
     right: 10px;
-    width: calc(100% - 20px);
+    left: 10px;
+    width: auto;
+    max-height: calc(100vh - 24px);
   }
 
   .achievements-modal {
@@ -2169,11 +2230,11 @@ body.has-open-modal {
   }
 
   .day__note {
-    right: 7px;
-    top: 7px;
-    width: 6px;
-    height: 6px;
-    box-shadow: 0 0 0 2px var(--brand-soft);
+    right: 5px;
+    top: 5px;
+    width: 4px;
+    height: 4px;
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--surface), transparent 18%);
   }
 }
 

@@ -78,8 +78,10 @@ const state = {
   editingStreakId: null,
   deferredInstallPrompt: null,
   catchUpDismissed: false,
-  achievementModalTimerId: null,
+  achievementModalSequence: 0,
 };
+
+const achievementModalTimers = new WeakMap();
 
 const elements = {
   themeOptions: document.querySelectorAll("[data-theme-option]"),
@@ -116,10 +118,7 @@ const elements = {
   achievementsEmpty: document.querySelector("#achievementsEmpty"),
   availableAchievementsList: document.querySelector("#availableAchievementsList"),
   availableAchievementsEmpty: document.querySelector("#availableAchievementsEmpty"),
-  achievementModal: document.querySelector("#achievementModal"),
-  achievementModalTitle: document.querySelector("#achievementModalTitle"),
-  achievementModalMessage: document.querySelector("#achievementModalMessage"),
-  closeAchievementModalButton: document.querySelector("#closeAchievementModalButton"),
+  achievementModalStack: document.querySelector("#achievementModalStack"),
   calendarTitle: document.querySelector("#calendarTitle"),
   calendarGrid: document.querySelector("#calendarGrid"),
   prevMonthButton: document.querySelector("#prevMonthButton"),
@@ -175,7 +174,6 @@ elements.saveCatchUpButton.addEventListener("click", saveCatchUpDates);
 elements.openAchievementsModalButton.addEventListener("click", showAchievementsModal);
 elements.closeAchievementsModalButton.addEventListener("click", hideAchievementsModal);
 elements.achievementsModal.addEventListener("click", handleAchievementsModalClick);
-elements.closeAchievementModalButton.addEventListener("click", hideAchievementModal);
 elements.closeDayEditorButton.addEventListener("click", hideDayEditor);
 elements.cancelDayEditorButton.addEventListener("click", hideDayEditor);
 elements.saveDayEditorButton.addEventListener("click", saveDayEditor);
@@ -641,7 +639,7 @@ function toggleToday() {
 
   saveStreakState();
   render();
-  showLatestAchievement(newlyUnlockedAchievements);
+  showUnlockedAchievements(newlyUnlockedAchievements);
 }
 
 function openDayEditor(dateKey) {
@@ -723,7 +721,7 @@ function saveDayEditor() {
   saveStreakState();
   hideDayEditor();
   render();
-  showLatestAchievement(newlyUnlockedAchievements);
+  showUnlockedAchievements(newlyUnlockedAchievements);
 }
 
 function dismissCatchUp() {
@@ -750,7 +748,7 @@ function saveCatchUpDates() {
 
   saveStreakState();
   render();
-  showLatestAchievement(newlyUnlockedAchievements);
+  showUnlockedAchievements(newlyUnlockedAchievements);
 }
 
 function updateCatchUpActionState() {
@@ -1080,10 +1078,10 @@ function getAchievementTier(achievement) {
   return "platinum";
 }
 
-function showLatestAchievement(newlyUnlockedAchievements) {
-  if (newlyUnlockedAchievements.length > 0) {
-    showAchievementModal(newlyUnlockedAchievements[newlyUnlockedAchievements.length - 1]);
-  }
+function showUnlockedAchievements(newlyUnlockedAchievements) {
+  newlyUnlockedAchievements.forEach((achievement) => {
+    showAchievementModal(achievement);
+  });
 }
 
 function loadSelectedTheme() {
@@ -1400,7 +1398,7 @@ function handleImportDataInputChange(event) {
 
       render();
       showDataStatus("Respaldo importado y fusionado.");
-      showLatestAchievement(newlyUnlockedAchievements);
+      showUnlockedAchievements(newlyUnlockedAchievements);
     } catch {
       showDataStatus("No se pudo importar: el archivo no es compatible.", true);
     } finally {
@@ -1595,22 +1593,58 @@ function registerServiceWorker() {
 }
 
 function showAchievementModal(achievement) {
-  window.clearTimeout(state.achievementModalTimerId);
+  const modalSequence = (state.achievementModalSequence += 1);
+  const titleId = `achievementModalTitle-${modalSequence}`;
+  const messageId = `achievementModalMessage-${modalSequence}`;
+  const modal = document.createElement("div");
+  const panel = document.createElement("div");
+  const kicker = document.createElement("span");
+  const title = document.createElement("strong");
+  const message = document.createElement("p");
+  const closeButton = document.createElement("button");
 
-  elements.achievementModal.className = `achievement-modal achievement-modal--${getAchievementTier(
+  modal.className = `achievement-modal achievement-modal--${getAchievementTier(
     achievement,
   )} is-celebrating`;
-  elements.achievementModalTitle.textContent = achievement.name;
-  elements.achievementModalMessage.textContent = getAchievementModalMessage(achievement);
-  renderAchievementCelebration();
-  elements.achievementModal.hidden = false;
-  elements.achievementModal.setAttribute("aria-hidden", "false");
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "false");
+  modal.setAttribute("aria-labelledby", titleId);
+  modal.setAttribute("aria-describedby", messageId);
+  modal.setAttribute("aria-hidden", "false");
+
+  panel.className = "achievement-modal__panel";
+
+  kicker.className = "achievement-modal__kicker";
+  kicker.textContent = "Nuevo logro";
+
+  title.id = titleId;
+  title.textContent = achievement.name;
+
+  message.id = messageId;
+  message.textContent = getAchievementModalMessage(achievement);
+
+  closeButton.className = "achievement-modal__close";
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", `Cerrar logro ${achievement.name}`);
+  closeButton.innerHTML = "&times;";
+
+  panel.append(kicker, title, message, closeButton);
+  renderAchievementCelebration(panel);
+  modal.append(panel);
+  elements.achievementModalStack.append(modal);
+
+  const closeModal = () => hideAchievementModal(modal);
+
+  closeButton.addEventListener("click", closeModal);
 
   window.requestAnimationFrame(() => {
-    elements.achievementModal.classList.add("is-visible");
+    modal.classList.add("is-visible");
   });
 
-  state.achievementModalTimerId = window.setTimeout(hideAchievementModal, ACHIEVEMENT_MODAL_TIMEOUT);
+  achievementModalTimers.set(
+    modal,
+    window.setTimeout(closeModal, ACHIEVEMENT_MODAL_TIMEOUT),
+  );
 }
 
 function getAchievementModalMessage(achievement) {
@@ -1633,21 +1667,28 @@ function getAchievementModalMessage(achievement) {
   return "Recuperaste un día pasado.";
 }
 
-function hideAchievementModal() {
-  window.clearTimeout(state.achievementModalTimerId);
-  elements.achievementModal.classList.remove("is-visible");
-  elements.achievementModal.classList.remove("is-celebrating");
-  elements.achievementModal.setAttribute("aria-hidden", "true");
+function hideAchievementModal(modal = null) {
+  if (!modal) {
+    [...elements.achievementModalStack.querySelectorAll(".achievement-modal")].forEach((item) => {
+      hideAchievementModal(item);
+    });
+    return;
+  }
+
+  window.clearTimeout(achievementModalTimers.get(modal));
+  achievementModalTimers.delete(modal);
+  modal.classList.remove("is-visible");
+  modal.classList.remove("is-celebrating");
+  modal.setAttribute("aria-hidden", "true");
 
   window.setTimeout(() => {
-    if (!elements.achievementModal.classList.contains("is-visible")) {
-      elements.achievementModal.hidden = true;
+    if (!modal.classList.contains("is-visible")) {
+      modal.remove();
     }
   }, 220);
 }
 
-function renderAchievementCelebration() {
-  const panel = elements.achievementModal.querySelector(".achievement-modal__panel");
+function renderAchievementCelebration(panel) {
   const existingBurst = panel.querySelector(".achievement-burst");
 
   existingBurst?.remove();
