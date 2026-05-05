@@ -1,9 +1,17 @@
-const CACHE_NAME = "streak-calendar-cache-v2";
+const CACHE_NAME = "streak-calendar-cache-v3";
 const APP_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./script.js",
+  "./js/achievements.js",
+  "./js/app.js",
+  "./js/constants.js",
+  "./js/date-utils.js",
+  "./js/dom-utils.js",
+  "./js/storage.js",
+  "./js/streaks.js",
+  "./js/ui.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
