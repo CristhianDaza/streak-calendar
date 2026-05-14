@@ -45,6 +45,44 @@ export function getStats(completedDates, today) {
   };
 }
 
+export function getActiveAchievementDates(completedDates, today = new Date()) {
+  const uniqueDates = [...new Set(completedDates)].sort();
+
+  if (uniqueDates.length === 0) {
+    return [];
+  }
+
+  const todayKey = toDateKey(today);
+  const yesterdayKey = toDateKey(addDays(today, -1));
+  const latestDateKey = uniqueDates.at(-1);
+
+  if (latestDateKey < yesterdayKey || latestDateKey > todayKey) {
+    return [];
+  }
+
+  const completedSet = new Set(uniqueDates);
+  const activeDates = [];
+  let cursor = parseDateKey(latestDateKey);
+
+  while (completedSet.has(toDateKey(cursor))) {
+    activeDates.push(toDateKey(cursor));
+    cursor = addDays(cursor, -1);
+  }
+
+  return activeDates.reverse();
+}
+
+export function getAchievementStats(completedDates, today = new Date()) {
+  const activeDates = getActiveAchievementDates(completedDates, today);
+  const stats = getStats(activeDates, today);
+
+  return {
+    ...stats,
+    currentStreak: activeDates.length,
+    totalCompleted: activeDates.length,
+  };
+}
+
 export function getUnlockedAchievements(activeStreak) {
   return ACHIEVEMENTS.filter((achievement) => activeStreak.unlockedAchievements[achievement.id]).map(
     (achievement) => ({

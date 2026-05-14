@@ -10,6 +10,7 @@ import {
   getAchievementModalMessage,
   getAchievementProgress,
   getAchievementProgressText,
+  getAchievementStats,
   getAchievementTier,
   getAvailableAchievements,
   getStats,
@@ -176,7 +177,7 @@ export function renderCatchUp({ elements, pendingDates }) {
 
 export function renderAchievements({ elements, activeStreak }) {
   const unlockedAchievements = getUnlockedAchievements(activeStreak);
-  const stats = getStats(activeStreak.completedDates, new Date());
+  const stats = getAchievementStats(activeStreak.completedDates, new Date());
   const availableAchievements = getAvailableAchievements(activeStreak, stats);
   const nextAchievement = availableAchievements[0];
   const previewAchievements = getPreviewAchievements(
@@ -229,6 +230,30 @@ export function renderAchievements({ elements, activeStreak }) {
   availableAchievements.forEach((achievement) => {
     elements.availableAchievementsList.append(
       createAchievementCard({ achievement }, stats, activeStreak),
+    );
+  });
+
+  renderAchievementHistory({ elements, activeStreak, stats });
+}
+
+export function renderAchievementHistory({ elements, activeStreak, stats }) {
+  const historyItems = getAchievementHistoryItems(activeStreak);
+
+  elements.achievementHistoryList.replaceChildren();
+  elements.achievementHistoryEmpty.hidden = historyItems.length > 0;
+
+  historyItems.forEach((item) => {
+    elements.achievementHistoryList.append(
+      createAchievementCard(
+        {
+          achievement: item.achievement,
+          unlockedDateKey: item.unlockedDateKey,
+          archivedAt: item.archivedAt,
+          isHistorical: true,
+        },
+        stats,
+        activeStreak,
+      ),
     );
   });
 }
@@ -433,7 +458,11 @@ function getPreviewAchievements(unlockedAchievements, availableAchievements, nex
   return [...unlockedAchievements].reverse().slice(0, 4);
 }
 
-function createAchievementCard({ achievement, unlockedDateKey, isNext = false }, stats, activeStreak) {
+function createAchievementCard(
+  { achievement, unlockedDateKey, archivedAt, isNext = false, isHistorical = false },
+  stats,
+  activeStreak,
+) {
   const isUnlocked = Boolean(unlockedDateKey);
   const progress = isUnlocked
     ? { current: achievement.target, target: achievement.target, ratio: 1 }
@@ -442,9 +471,9 @@ function createAchievementCard({ achievement, unlockedDateKey, isNext = false },
     className: `achievement-card achievement-card--${getAchievementTier(achievement)}`,
     attributes: {
       "aria-label": isUnlocked
-        ? `${achievement.name}, ${getAchievementGoalLabel(achievement)}, conseguido el ${formatDateKey(
-            unlockedDateKey,
-          )}`
+        ? `${achievement.name}, ${getAchievementGoalLabel(achievement)}, ${
+            isHistorical ? "alcanzado antes" : "conseguido"
+          } el ${formatDateKey(unlockedDateKey)}`
         : `${achievement.name}, ${getAchievementGoalLabel(
             achievement,
           )}, ${getAchievementProgressText(achievement, stats, activeStreak)}`,
@@ -452,6 +481,7 @@ function createAchievementCard({ achievement, unlockedDateKey, isNext = false },
   });
 
   card.classList.toggle("achievement-card--unlocked", isUnlocked);
+  card.classList.toggle("achievement-card--historical", isHistorical);
   card.classList.toggle("achievement-card--locked", !isUnlocked);
   card.classList.toggle("achievement-card--next", isNext);
 
@@ -461,15 +491,21 @@ function createAchievementCard({ achievement, unlockedDateKey, isNext = false },
   });
   const stateIcon = createElement("span", {
     className: "achievement-card__state",
-    text: isUnlocked ? "✓" : isNext ? "→" : "○",
+    text: isHistorical ? "↺" : isUnlocked ? "✓" : isNext ? "→" : "○",
     attributes: { "aria-hidden": "true" },
   });
   const title = createElement("strong", { text: achievement.name });
   const detail = createElement("span", {
     className: "achievement-card__date",
-    text: isUnlocked
-      ? `Conseguido el ${formatDateKey(unlockedDateKey)}`
-      : getAchievementProgressText(achievement, stats, activeStreak),
+    text: getAchievementCardDetail({
+      achievement,
+      activeStreak,
+      archivedAt,
+      isHistorical,
+      isUnlocked,
+      stats,
+      unlockedDateKey,
+    }),
   });
   const progressValue = createElement("span");
   const progressBar = createElement("span", {
@@ -481,6 +517,46 @@ function createAchievementCard({ achievement, unlockedDateKey, isNext = false },
   progressBar.append(progressValue);
   card.append(badge, stateIcon, title, detail, progressBar);
   return card;
+}
+
+function getAchievementHistoryItems(activeStreak) {
+  return (activeStreak.achievementHistory || [])
+    .map((item) => ({
+      ...item,
+      achievement: ACHIEVEMENTS.find((achievement) => achievement.id === item.achievementId),
+    }))
+    .filter((item) => item.achievement)
+    .sort((firstItem, secondItem) => {
+      const archiveOrder = secondItem.archivedAt.localeCompare(firstItem.archivedAt);
+
+      if (archiveOrder !== 0) {
+        return archiveOrder;
+      }
+
+      return secondItem.unlockedDateKey.localeCompare(firstItem.unlockedDateKey);
+    });
+}
+
+function getAchievementCardDetail({
+  achievement,
+  activeStreak,
+  archivedAt,
+  isHistorical,
+  isUnlocked,
+  stats,
+  unlockedDateKey,
+}) {
+  if (isHistorical) {
+    return `Alcanzado el ${formatDateKey(unlockedDateKey)} · reiniciado el ${formatDateKey(
+      toDateKey(new Date(archivedAt)),
+    )}`;
+  }
+
+  if (isUnlocked) {
+    return `Conseguido el ${formatDateKey(unlockedDateKey)}`;
+  }
+
+  return getAchievementProgressText(achievement, stats, activeStreak);
 }
 
 function getDayStatus(isComplete, isToday, isFuture) {

@@ -5,7 +5,10 @@ import {
   EXPORT_VERSION,
   MAX_STREAK_NAME_LENGTH,
 } from "./constants.js";
-import { deriveAchievementsFromCompletedDates } from "./achievements.js";
+import {
+  deriveAchievementsFromCompletedDates,
+  getActiveAchievementDates,
+} from "./achievements.js";
 import { isDateKey } from "./date-utils.js";
 
 export function normalizeStreakState(value) {
@@ -57,6 +60,9 @@ export function normalizeStreak(value, index) {
   const storedAchievements = isRecordObject(value.unlockedAchievements)
     ? normalizeUnlockedAchievements(value.unlockedAchievements)
     : {};
+  const achievementHistory = Array.isArray(value.achievementHistory)
+    ? normalizeAchievementHistory(value.achievementHistory)
+    : [];
 
   return {
     id,
@@ -66,9 +72,10 @@ export function normalizeStreak(value, index) {
     dismissedCatchUpDates,
     notesByDate,
     unlockedAchievements: {
-      ...deriveAchievementsFromCompletedDates(completedDates),
+      ...deriveAchievementsFromCompletedDates(getActiveAchievementDates(completedDates)),
       ...storedAchievements,
     },
+    achievementHistory,
   };
 }
 
@@ -81,6 +88,7 @@ export function createEmptyStreak(name = DEFAULT_STREAK_NAME, id = createStreakI
     dismissedCatchUpDates: [],
     notesByDate: {},
     unlockedAchievements: {},
+    achievementHistory: [],
   };
 }
 
@@ -127,6 +135,42 @@ export function normalizeUnlockedAchievements(value) {
       ([achievementId, unlockedDateKey]) =>
         ACHIEVEMENT_IDS.has(achievementId) && isDateKey(unlockedDateKey),
     ),
+  );
+}
+
+export function normalizeAchievementHistory(value) {
+  if (!Array.isArray(value)) {
+    throw new Error("Invalid achievement history");
+  }
+
+  const historyByKey = new Map();
+
+  value.forEach((item) => {
+    if (!isRecordObject(item)) {
+      return;
+    }
+
+    const achievementId = typeof item.achievementId === "string" ? item.achievementId : "";
+    const unlockedDateKey = item.unlockedDateKey;
+    const archivedAt = typeof item.archivedAt === "string" ? item.archivedAt : "";
+
+    if (
+      !ACHIEVEMENT_IDS.has(achievementId) ||
+      !isDateKey(unlockedDateKey) ||
+      Number.isNaN(Date.parse(archivedAt))
+    ) {
+      return;
+    }
+
+    historyByKey.set(`${achievementId}|${unlockedDateKey}|${archivedAt}`, {
+      achievementId,
+      unlockedDateKey,
+      archivedAt,
+    });
+  });
+
+  return [...historyByKey.values()].sort((firstItem, secondItem) =>
+    firstItem.archivedAt.localeCompare(secondItem.archivedAt),
   );
 }
 

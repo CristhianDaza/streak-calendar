@@ -10,7 +10,10 @@ import {
   THEME_IDS,
   THEME_STORAGE_KEY,
 } from "./constants.js";
-import { deriveAchievementsFromCompletedDates } from "./achievements.js";
+import {
+  deriveAchievementsFromCompletedDates,
+  getActiveAchievementDates,
+} from "./achievements.js";
 import {
   normalizeDateArray,
   isRecordObject,
@@ -129,9 +132,10 @@ function createMigratedStreakState() {
         dismissedCatchUpDates: [],
         notesByDate: loadNotesByDate(),
         unlockedAchievements: {
-          ...deriveAchievementsFromCompletedDates(completedDates),
+          ...deriveAchievementsFromCompletedDates(getActiveAchievementDates(completedDates)),
           ...storedAchievements,
         },
+        achievementHistory: [],
       },
     ],
   };

@@ -15,7 +15,10 @@ import {
   startOfMonth,
   toDateKey,
 } from "./date-utils.js";
-import { deriveAchievementsFromCompletedDates } from "./achievements.js";
+import {
+  deriveAchievementsFromCompletedDates,
+  getActiveAchievementDates,
+} from "./achievements.js";
 import { createEmptyStreak, normalizeStreakName } from "./streaks.js";
 import {
   createBackup,
@@ -54,6 +57,7 @@ export function startApp() {
 
   bindEvents();
   applyTheme(state.selectedTheme, elements);
+  refreshActiveStreakAchievements();
   renderApp();
   registerServiceWorker();
 }
@@ -94,6 +98,9 @@ function getElements() {
     achievementsEmpty: document.querySelector("#achievementsEmpty"),
     availableAchievementsList: document.querySelector("#availableAchievementsList"),
     availableAchievementsEmpty: document.querySelector("#availableAchievementsEmpty"),
+    achievementHistorySection: document.querySelector("#achievementHistorySection"),
+    achievementHistoryList: document.querySelector("#achievementHistoryList"),
+    achievementHistoryEmpty: document.querySelector("#achievementHistoryEmpty"),
     achievementModalStack: document.querySelector("#achievementModalStack"),
     calendarTitle: document.querySelector("#calendarTitle"),
     calendarGrid: document.querySelector("#calendarGrid"),
@@ -261,7 +268,7 @@ function toggleToday() {
   const activeStreak = getActiveStreak();
   const todayKey = toDateKey(new Date());
   const exists = activeStreak.completedDates.includes(todayKey);
-  const previousAchievementIds = new Set(Object.keys(activeStreak.unlockedAchievements));
+  const previousAchievementIds = refreshActiveStreakAchievements();
 
   setCompletedDate(todayKey, !exists);
   commitActiveStreakChange(previousAchievementIds);
@@ -314,7 +321,7 @@ function saveDayEditor() {
   const wasComplete = activeStreak.completedDates.includes(dateKey);
   const shouldComplete = elements.dayEditorCompleted.checked;
   const note = elements.dayEditorNote.value.trim();
-  const previousAchievementIds = new Set(Object.keys(activeStreak.unlockedAchievements));
+  const previousAchievementIds = refreshActiveStreakAchievements();
   const extraAchievementIds = [];
 
   setCompletedDate(dateKey, shouldComplete);
@@ -368,7 +375,7 @@ function saveCatchUpDates() {
   }
 
   const activeStreak = getActiveStreak();
-  const previousAchievementIds = new Set(Object.keys(activeStreak.unlockedAchievements));
+  const previousAchievementIds = refreshActiveStreakAchievements();
   const selectedDatesSet = new Set(selectedDates);
   updateActiveStreak({
     completedDates: [...new Set([...activeStreak.completedDates, ...selectedDates])].sort(),
@@ -425,29 +432,106 @@ function commitActiveStreakChange(previousAchievementIds, extraAchievementIds = 
   showUnlockedAchievements(elements, state, newlyUnlockedAchievements);
 }
 
+function refreshActiveStreakAchievements() {
+  const activeStreak = getActiveStreak();
+  const retainedCycleAchievements = getCurrentCycleAchievements(activeStreak);
+  const currentAchievementIds = Object.keys(activeStreak.unlockedAchievements);
+  const hasLostActiveAchievements = currentAchievementIds.some(
+    (achievementId) => !retainedCycleAchievements[achievementId],
+  );
+
+  if (!hasLostActiveAchievements) {
+    return new Set(currentAchievementIds);
+  }
+
+  const nextUnlockedAchievements = getCurrentCycleAchievements(activeStreak, {
+    retainManualAchievements: false,
+  });
+
+  updateActiveStreak({
+    unlockedAchievements: nextUnlockedAchievements,
+    achievementHistory: archiveUnlockedAchievements(activeStreak),
+  });
+  saveStreakState();
+  return new Set(Object.keys(nextUnlockedAchievements));
+}
+
 function syncUnlockedAchievementsFromCompletedDates(
   previousAchievementIds,
   extraAchievementIds = [],
   unlockedDateKey = toDateKey(new Date()),
 ) {
   const activeStreak = getActiveStreak();
-  const derivedAchievements = deriveAchievementsFromCompletedDates(activeStreak.completedDates);
+  const retainedCycleAchievements = getCurrentCycleAchievements(activeStreak);
+  const lostActiveAchievements = Object.keys(activeStreak.unlockedAchievements).some(
+    (achievementId) => !retainedCycleAchievements[achievementId],
+  );
+  const derivedAchievements = lostActiveAchievements
+    ? getCurrentCycleAchievements(activeStreak, { retainManualAchievements: false })
+    : retainedCycleAchievements;
   const extraAchievements = Object.fromEntries(
     extraAchievementIds
       .filter((achievementId) => ACHIEVEMENT_IDS.has(achievementId))
       .map((achievementId) => [achievementId, unlockedDateKey]),
   );
-  const mergedAchievements = {
+  const nextAchievements = {
     ...derivedAchievements,
     ...extraAchievements,
-    ...activeStreak.unlockedAchievements,
   };
+  const achievementHistory = lostActiveAchievements
+    ? archiveUnlockedAchievements(activeStreak)
+    : activeStreak.achievementHistory;
+  const mergedAchievements = Object.fromEntries(
+    Object.entries(nextAchievements).map(([achievementId, dateKey]) => [
+      achievementId,
+      lostActiveAchievements
+        ? dateKey
+        : activeStreak.unlockedAchievements[achievementId] || dateKey,
+    ]),
+  );
   const newlyUnlockedAchievements = ACHIEVEMENTS.filter(
     (achievement) => mergedAchievements[achievement.id] && !previousAchievementIds.has(achievement.id),
   );
 
-  updateActiveStreak({ unlockedAchievements: mergedAchievements });
+  updateActiveStreak({ unlockedAchievements: mergedAchievements, achievementHistory });
   return newlyUnlockedAchievements;
+}
+
+function getCurrentCycleAchievements(streak, { retainManualAchievements = true } = {}) {
+  const activeAchievementDates = getActiveAchievementDates(streak.completedDates);
+  const achievements = deriveAchievementsFromCompletedDates(activeAchievementDates);
+
+  if (!retainManualAchievements || activeAchievementDates.length === 0) {
+    return achievements;
+  }
+
+  Object.entries(streak.unlockedAchievements).forEach(([achievementId, unlockedDateKey]) => {
+    const achievement = ACHIEVEMENTS.find((item) => item.id === achievementId);
+
+    if (achievement?.type === "recovery") {
+      achievements[achievementId] = unlockedDateKey;
+    }
+  });
+
+  return achievements;
+}
+
+function archiveUnlockedAchievements(streak, archivedAt = new Date().toISOString()) {
+  const historyByKey = new Map(
+    (streak.achievementHistory || []).map((item) => [
+      `${item.achievementId}|${item.unlockedDateKey}|${item.archivedAt}`,
+      item,
+    ]),
+  );
+
+  Object.entries(streak.unlockedAchievements).forEach(([achievementId, unlockedDateKey]) => {
+    const historyItem = { achievementId, unlockedDateKey, archivedAt };
+    historyByKey.set(`${achievementId}|${unlockedDateKey}|${archivedAt}`, historyItem);
+  });
+
+  return [...historyByKey.values()].sort((firstItem, secondItem) =>
+    firstItem.archivedAt.localeCompare(secondItem.archivedAt),
+  );
 }
 
 function saveStreakState() {
@@ -490,6 +574,7 @@ function setActiveStreak(streakId) {
   state.activeStreakId = streakId;
   hideDayEditor();
   hideAchievementModal(elements);
+  refreshActiveStreakAchievements();
   saveStreakState();
   renderApp();
 }
@@ -586,10 +671,13 @@ function mergeImportedData(backup) {
       .filter((dateKey) => !completedDateSet.has(dateKey))
       .sort();
     const unlockedAchievements = {
-      ...deriveAchievementsFromCompletedDates(completedDates),
       ...importedStreak.unlockedAchievements,
       ...currentStreak.unlockedAchievements,
     };
+    const achievementHistory = mergeAchievementHistory(
+      currentStreak.achievementHistory,
+      importedStreak.achievementHistory,
+    );
 
     streaksById.set(importedStreak.id, {
       ...currentStreak,
@@ -601,6 +689,7 @@ function mergeImportedData(backup) {
         ...currentStreak.notesByDate,
       },
       unlockedAchievements,
+      achievementHistory,
     });
   });
 
@@ -611,12 +700,25 @@ function mergeImportedData(backup) {
   }
 
   saveStreakState();
+  refreshActiveStreakAchievements();
 
   const updatedActiveStreak = getActiveStreak();
   return ACHIEVEMENTS.filter(
     (achievement) =>
       updatedActiveStreak.unlockedAchievements[achievement.id] &&
       !previousAchievementIds.has(achievement.id),
+  );
+}
+
+function mergeAchievementHistory(currentHistory = [], importedHistory = []) {
+  const historyByKey = new Map();
+
+  [...currentHistory, ...importedHistory].forEach((item) => {
+    historyByKey.set(`${item.achievementId}|${item.unlockedDateKey}|${item.archivedAt}`, item);
+  });
+
+  return [...historyByKey.values()].sort((firstItem, secondItem) =>
+    firstItem.archivedAt.localeCompare(secondItem.archivedAt),
   );
 }
 

@@ -11,7 +11,8 @@ Sitio web estático para registrar hábitos diarios, mantener rachas, revisar pr
 - Vista mensual con navegación por meses.
 - Estadísticas de racha actual, mejor racha, total completado y progreso del mes.
 - Recuperación de días omitidos para reconstruir una racha.
-- Sistema de logros por racha, total acumulado, meses perfectos, fines de semana completos y recuperación.
+- Sistema de logros por ciclo de racha, total del ciclo, meses perfectos, fines de semana completos y recuperación.
+- Historial de logros alcanzados antes de perder una racha.
 - Exportación e importación de respaldos JSON.
 - Temas visuales seleccionables.
 - Instalación como aplicación web progresiva en navegadores compatibles.
@@ -70,7 +71,7 @@ npx serve .
 4. Cambia entre rachas desde la lista de rachas disponibles.
 5. Navega entre meses con los botones de la vista mensual.
 6. Selecciona un día pasado para marcarlo, desmarcarlo o añadir una nota.
-7. Revisa los logros desbloqueados y el siguiente logro disponible.
+7. Revisa los logros activos, el siguiente logro disponible y el historial de logros alcanzados antes.
 8. Exporta tus datos desde **Exportar respaldo** cuando quieras guardarlos fuera del navegador.
 9. Importa un respaldo JSON desde **Importar respaldo** para fusionar datos existentes.
 
@@ -121,9 +122,10 @@ El respaldo incluye:
 - fechas completadas.
 - notas por día.
 - logros desbloqueados.
+- historial de logros alcanzados antes.
 - días omitidos en recuperación.
 
-Al importar un respaldo, la aplicación fusiona los datos con el estado actual. Si una racha ya existe, combina fechas completadas, notas y logros en lugar de reemplazar todo el estado.
+Al importar un respaldo, la aplicación fusiona los datos con el estado actual. Si una racha ya existe, combina fechas completadas, notas, logros activos e historial de logros en lugar de reemplazar todo el estado.
 
 ## PWA y modo offline
 
@@ -139,7 +141,7 @@ Para que la instalación y el service worker funcionen, el sitio debe ejecutarse
 
 ## Logros
 
-Los logros se calculan a partir de las fechas completadas de cada racha. Hay logros por:
+Los logros activos se calculan a partir del ciclo vigente de cada racha. Si se pierde la racha, los logros activos se reinician, vuelven a quedar disponibles y los logros alcanzados pasan al historial. Hay logros por:
 
 - días consecutivos de racha.
 - total de días marcados.

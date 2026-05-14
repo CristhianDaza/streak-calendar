@@ -1,4 +1,4 @@
-const CACHE_NAME = "streak-calendar-cache-v3";
+const CACHE_NAME = "streak-calendar-cache-v4";
 const APP_ASSETS = [
   "./",
   "./index.html",
